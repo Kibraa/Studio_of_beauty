@@ -1,3 +1,5 @@
+/*Brow beige : img1, img3, img5, img9, img13, img15*/
+
 const PRODUCT_DESCRIPTION = `Un carnet digital complet permettant de gérer jusqu'à 1040 clientes avec 2 pages détaillées par cliente, soit 1086 pages au total.
 
 Entièrement interactif, il offre une navigation fluide via liens internes : chaque fiche est accessible en un clic, directement depuis une organisation alphabétique structurée, regroupant jusqu'à 40 noms par section.
@@ -15,7 +17,7 @@ const PRODUCTS = {
     price: '8,95 €',
     category: 'brow',
     hover: 'images/placeholder.svg',
-    images: ['images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg']
+    images: ['images/img1.jpg', 'images/img3.jpg', 'images/img5.jpg', 'images/img9.jpg', 'images/img13.jpg', 'images/img15.jpg']
   },
   'brow-gray': {
     title: "L'Essentiel Brow",
@@ -23,7 +25,7 @@ const PRODUCTS = {
     price: '8,95 €',
     category: 'brow',
     hover: 'images/placeholder.svg',
-    images: ['images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg']
+    images: ['images/img2.jpg', 'images/img4.jpg', 'images/img8.jpg', 'images/img11.jpg', 'images/img14.jpg', 'images/img15.jpg']
   },
   'lash-beige': {
     title: "L'Essentiel Lash",
@@ -31,7 +33,7 @@ const PRODUCTS = {
     price: '8,95 €',
     category: 'lash',
     hover: 'images/placeholder.svg',
-    images: ['images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg']
+    images: ['images/img1.jpg', 'images/img3.jpg', 'images/img6.jpg', 'images/img10.jpg', 'images/img13.jpg', 'images/img15.jpg']
   },
   'lash-gray': {
     title: "L'Essentiel Lash",
@@ -39,16 +41,125 @@ const PRODUCTS = {
     price: '8,95 €',
     category: 'lash',
     hover: 'images/placeholder.svg',
-    images: ['images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg', 'images/placeholder.svg']
+    images: ['images/img2.jpg', 'images/img4.jpg', 'images/img7.jpg', 'images/img12.jpg', 'images/img14.jpg', 'images/img15.jpg']
   }
 };
 
 const STORAGE_USERS = 'sob_users';
 const STORAGE_SESSION = 'sob_current_user';
 const STORAGE_REVIEWS = 'sob_reviews';
+const STORAGE_CART = 'sob_cart';
 
 let productSliderIntervals = {};
 let homeReviewsInterval = null;
+
+function getCart() {
+  return JSON.parse(localStorage.getItem(STORAGE_CART) || '[]');
+}
+
+function saveCart(cart) {
+  localStorage.setItem(STORAGE_CART, JSON.stringify(cart));
+  updateCartBadge();
+}
+
+function updateCartBadge() {
+  const badge = document.querySelector('.cart-badge');
+  if (!badge) return;
+  const count = getCart().reduce((sum, item) => sum + item.quantity, 0);
+  badge.textContent = count;
+}
+
+function isLoggedIn() {
+  return Boolean(getCurrentUser());
+}
+
+function addToCart(slug) {
+  if (!isLoggedIn()) {
+    alert('Vous devez créer un compte pour ajouter un produit au panier.');
+    location.href = 'signup.html';
+    return;
+  }
+
+  const product = PRODUCTS[slug];
+  if (!product) return;
+  const cart = getCart();
+  const item = cart.find(entry => entry.slug === slug);
+  if (item) {
+    item.quantity += 1;
+  } else {
+    cart.push({
+      slug,
+      title: `${product.title} ${product.color}`,
+      price: product.price,
+      quantity: 1,
+      image: product.images[0]
+    });
+  }
+  saveCart(cart);
+  alert('Votre produit a bien été rajouté au panier');
+}
+
+function buyNow(slug) {
+  if (!isLoggedIn()) {
+    alert('Vous devez créer un compte pour ajouter un produit au panier.');
+    location.href = 'signup.html';
+    return;
+  }
+  addToCart(slug);
+  location.href = 'cart.html';
+}
+
+function removeFromCart(slug) {
+  const cart = getCart().filter(item => item.slug !== slug);
+  saveCart(cart);
+  buildCartPage();
+}
+
+function formatPrice(priceString) {
+  return priceString.replace(',', '.').replace(/[^0-9.]/g, '');
+}
+
+function buildCartPage() {
+  const page = document.querySelector('.cart-page-template');
+  if (!page) return;
+  const cart = getCart();
+  if (!cart.length) {
+    page.innerHTML = '<div class="cart-empty">Rien dans votre panier</div><a href="index.html" class="back-to-home">Retour à l\'accueil</a>';
+    return;
+  }
+  const total = cart.reduce((sum, item) => {
+    const price = parseFloat(formatPrice(item.price));
+    return sum + price * item.quantity;
+  }, 0);
+  page.innerHTML = `
+    <div class="cart-page">
+      <h1>Votre panier</h1>
+      <div class="cart-list">
+        ${cart.map(item => `
+          <div class="cart-item">
+            <img src="${item.image || 'images/placeholder.svg'}" alt="${item.title}">
+            <div class="cart-item-info">
+              <div class="cart-item-title">${item.title}</div>
+              <div class="cart-item-qty">Quantité : ${item.quantity}</div>
+              <div class="cart-item-price">Prix unitaire : ${item.price}</div>
+            </div>
+            <div class="cart-item-actions">
+              <button class="cart-item-remove" type="button" data-slug="${item.slug}">Supprimer</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="cart-summary">
+        <div>Total</div>
+        <div>${total.toFixed(2).replace('.', ',')} €</div>
+      </div>
+      <a href="index.html" class="back-to-home">Retour à l'accueil</a>
+    </div>
+  `;
+  page.querySelectorAll('.cart-item-remove').forEach(btn => {
+    btn.addEventListener('click', () => removeFromCart(btn.dataset.slug));
+  });
+}
 
 function formatReviewDate(dateString) {
   const date = new Date(dateString);
@@ -216,13 +327,17 @@ function buildProductPage() {
             <div class="product-color">${product.color}</div>
             <div class="product-price-box">${product.price}</div>
             <div class="product-description">${PRODUCT_DESCRIPTION}</div>
-            <a class="back-link" href="shop.html">Retour à la boutique</a>
+          <div class="product-actions">
+            <button class="btn btn-primary" type="button" onclick="buyNow('${slug}')">Acheter</button>
+            <button class="btn btn-secondary" type="button" onclick="addToCart('${slug}')">Ajouter au panier</button>
           </div>
+          <a class="back-link" href="shop.html">Retour à la boutique</a>
         </div>
       </div>
     </div>
   `;
 }
+
 
 function initProductSliders() {
   Object.keys(PRODUCTS).forEach(slug => {
@@ -483,6 +598,8 @@ window.addEventListener('DOMContentLoaded', () => {
   initProductSliders();
   renderReviewsPage();
   renderHomeReviews();
+  updateCartBadge();
+  buildCartPage();
 
   const prefillEmail = localStorage.getItem('sob_prefill_email');
   if (prefillEmail) {
